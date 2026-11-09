@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- PWA Settings -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0f2842">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Doc Scanner - Mobile Scanner & PDF Tools</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Mobile App Frame -->
+  <div class="app-container">
+    
+    <!-- Top App Bar -->
+    <header class="app-header">
+      <div class="header-left">
+        <button id="menu-btn" class="icon-btn" aria-label="Menu"><i class="fa-solid fa-bars"></i></button>
+        <h1 class="header-title">Doc Scanner</h1>
+      </div>
+      <div class="header-right">
+        <button id="vip-crown-btn" class="icon-btn crown-btn" title="Go Premium"><i class="fa-solid fa-crown"></i></button>
+        <button id="search-toggle-btn" class="icon-btn" title="Search"><i class="fa-solid fa-magnifying-glass"></i></button>
+        <button id="more-menu-btn" class="icon-btn" title="More Options"><i class="fa-solid fa-ellipsis-vertical"></i></button>
+      </div>
+    </header>
+
+    <!-- Social / Promo Banner -->
+    <div class="promo-banner">
+      <a href="#" class="banner-badge ig-badge"><i class="fa-brands fa-instagram"></i> Follow</a>
+      <span class="banner-text">Follow Us on Social Media</span>
+      <a href="#" class="banner-badge fb-badge"><i class="fa-brands fa-facebook-f"></i> Like</a>
+      <button class="banner-close" onclick="this.parentElement.style.display='none'">&times;</button>
+    </div>
+
+    <!-- Quick Tool Action Chips (Horizontal Scroll) -->
+    <div class="quick-tools-scroll">
+      <button class="tool-chip" onclick="openToolkit()"><i class="fa-regular fa-file-pdf"></i> PDF Editor</button>
+      <button class="tool-chip" onclick="openSignatureModal()"><i class="fa-solid fa-signature"></i> Signature</button>
+      <button class="tool-chip" onclick="triggerOCRFlow()"><i class="fa-solid fa-font"></i> OCR Image To Text</button>
+      <button class="tool-chip" onclick="openToolkit()"><i class="fa-solid fa-qrcode"></i> QR Scanner</button>
+      <button class="tool-chip" onclick="filterDocs('trash')"><i class="fa-regular fa-trash-can"></i> Trash</button>
+      <button class="tool-chip" onclick="openSettings()"><i class="fa-solid fa-gear"></i> Settings</button>
+    </div>
+
+    <!-- Filter Pills Tab Bar -->
+    <div class="category-tabs">
+      <button class="tab-pill active" onclick="switchTab(this, 'all')">All docs <i class="fa-solid fa-arrow-down-short-wide"></i></button>
+      <button class="tab-pill" onclick="switchTab(this, 'recent')">Recent</button>
+      <button class="tab-pill" onclick="switchTab(this, 'favourite')"><i class="fa-solid fa-star"></i> Favourite</button>
+      <button class="tab-pill" onclick="switchTab(this, 'cards')">ID Cards</button>
+      <button class="tab-pill" onclick="switchTab(this, 'bills')">Bills</button>
+    </div>
+
+    <!-- Search Input Bar (Expandable) -->
+    <div id="search-bar" class="search-bar hidden">
+      <i class="fa-solid fa-magnifying-glass search-icon"></i>
+      <input type="text" id="search-input" placeholder="Search folders or documents...">
+      <button id="close-search" class="icon-btn"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <!-- Main Content List -->
+    <main class="main-content">
+      <!-- Folders Section -->
+      <section class="section-block">
+        <div class="section-header">
+          <span class="section-title">Folders (<span id="folder-count">3</span>)</span>
+          <button class="icon-action-btn" title="New Folder" onclick="promptCreateFolder()"><i class="fa-solid fa-folder-plus"></i></button>
+        </div>
+        <div id="folders-list" class="folders-list"></div>
+      </section>
+
+      <!-- Documents Section -->
+      <section class="section-block">
+        <div class="section-header">
+          <span class="section-title">Documents (<span id="doc-count">4</span>)</span>
+        </div>
+        <div id="docs-list" class="docs-list"></div>
+      </section>
+    </main>
+
+    <!-- Bottom Floating Action Button Group -->
+    <div class="fab-group">
+      <label for="camera-input" class="fab-btn fab-camera" title="Scan with Camera">
+        <i class="fa-solid fa-camera"></i>
+      </label>
+      <input type="file" id="camera-input" accept="image/*" capture="environment" style="display: none;" onchange="handleImagePicked(event)">
+      <div class="fab-divider"></div>
+      <label for="gallery-input" class="fab-btn fab-plus" title="Import Document">
+        <i class="fa-solid fa-plus"></i>
+      </label>
+      <input type="file" id="gallery-input" accept="image/*,application/pdf" style="display: none;" onchange="handleImagePicked(event)">
+    </div>
+
+    <!-- Navigation Drawer (Side Menu) -->
+    <div id="side-drawer" class="drawer-overlay hidden">
+      <div class="drawer-content">
+        <div class="drawer-user-card" onclick="openPremiumModal()">
+          <div class="drawer-avatar"><i class="fa-regular fa-user"></i></div>
+          <div class="drawer-user-info">
+            <h3>Sign In (Cloud)</h3>
+            <p>Sign in to sync documents</p>
+          </div>
+        </div>
+        
+        <div class="drawer-premium-strip" onclick="openPremiumModal()">
+          <i class="fa-solid fa-medal"></i>
+          <div>
+            <strong>Upgrade to Premium</strong>
+            <small>Unlock Full Features and Go Ads Free!</small>
+          </div>
+          <i class="fa-solid fa-chevron-right ml-auto"></i>
+        </div>
+
+        <ul class="drawer-nav">
+          <li onclick="filterDocs('favourite'); closeDrawer();"><i class="fa-regular fa-heart"></i> Favourite</li>
+          <li onclick="filterDocs('all'); closeDrawer();"><i class="fa-solid fa-tag"></i> Manage tags</li>
+          <li onclick="filterDocs('trash'); closeDrawer();"><i class="fa-regular fa-trash-can"></i> Trash</li>
+          <li onclick="openSettings(); closeDrawer();"><i class="fa-solid fa-gear"></i> Settings</li>
+          <hr>
+          <li onclick="openToolkit(); closeDrawer();"><i class="fa-solid fa-toolbox"></i> Tools & PDF Viewer</li>
+          <li onclick="openPremiumModal(); closeDrawer();"><i class="fa-solid fa-crown"></i> Go Premium</li>
+          <li onclick="alert('Doc Scanner v1.0.0\nBuilt for Android & Web'); closeDrawer();"><i class="fa-solid fa-circle-info"></i> About us</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Three-dot Popup Dropdown -->
+    <div id="more-dropdown" class="dropdown-menu hidden">
+      <div class="dropdown-item" onclick="openToolkit()"><i class="fa-regular fa-file-pdf"></i> PDF / JPG</div>
+      <div class="dropdown-item" onclick="document.getElementById('gallery-input').click()"><i class="fa-solid fa-file-import"></i> Import</div>
+      <div class="dropdown-item" onclick="openToolkit()"><i class="fa-solid fa-screwdriver-wrench"></i> PDF Tools</div>
+      <div class="dropdown-item" onclick="sortDocs()"><i class="fa-solid fa-arrow-down-a-z"></i> Sort By</div>
+      <div class="dropdown-item" onclick="promptCreateFolder()"><i class="fa-solid fa-folder-plus"></i> Create Folder</div>
+      <div class="dropdown-item" onclick="alert('Synced with local storage successfully!')"><i class="fa-solid fa-cloud-arrow-up"></i> Sync now</div>
+    </div>
+
+    <!-- Scanning Studio / Editing Modal -->
+    <div id="scanner-modal" class="fullscreen-modal hidden">
+      <div class="modal-top-bar">
+        <button class="icon-btn" onclick="closeScanner()"><i class="fa-solid fa-arrow-left"></i></button>
+        <h2>Document Editor</h2>
+        <button class="btn-primary" onclick="saveScannedDocument()"><i class="fa-solid fa-check"></i> Done</button>
+      </div>
+
+      <div class="scanner-preview-area">
+        <canvas id="editor-canvas"></canvas>
+      </div>
+
+      <div class="editor-controls">
+        <div class="filter-buttons">
+          <button class="filter-btn active" onclick="applyFilter('original')">Original</button>
+          <button class="filter-btn" onclick="applyFilter('magic')">Magic Color</button>
+          <button class="filter-btn" onclick="applyFilter('bw')">B & W</button>
+          <button class="filter-btn" onclick="applyFilter('grayscale')">Grayscale</button>
+          <button class="filter-btn" onclick="applyFilter('contrast')">High Contrast</button>
+        </div>
+        <div class="action-buttons-grid">
+          <button class="action-btn" onclick="rotateImage()"><i class="fa-solid fa-rotate-right"></i> Rotate 90°</button>
+          <button class="action-btn" onclick="openSignatureModal()"><i class="fa-solid fa-signature"></i> Add Signature</button>
+          <button class="action-btn" onclick="openOCRModal()"><i class="fa-solid fa-font"></i> OCR Extract</button>
+          <button class="action-btn" onclick="downloadCurrentAsPDF()"><i class="fa-solid fa-download"></i> Save as PDF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Signature Pad Modal -->
+    <div id="signature-modal" class="center-modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-card-header">
+          <h3>Draw Signature</h3>
+          <button class="icon-btn" onclick="closeSignatureModal()">&times;</button>
+        </div>
+        <canvas id="signature-canvas" width="340" height="180"></canvas>
+        <div class="modal-card-footer">
+          <button class="btn-secondary" onclick="clearSignature()"><i class="fa-solid fa-eraser"></i> Clear</button>
+          <button class="btn-primary" onclick="applySignatureToDocument()"><i class="fa-solid fa-check"></i> Stamp On Doc</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- OCR Result Modal -->
+    <div id="ocr-modal" class="center-modal-overlay hidden">
+      <div class="modal-card">
+        <div class="modal-card-header">
+          <h3>OCR Extracted Text</h3>
+          <button class="icon-btn" onclick="closeOCRModal()">&times;</button>
+        </div>
+        <div id="ocr-loading" class="ocr-loading hidden">
+          <i class="fa-solid fa-spinner fa-spin"></i> Extracting text using AI OCR...
+        </div>
+        <textarea id="ocr-text-result" rows="8" placeholder="Extracted text will appear here..."></textarea>
+        <div class="modal-card-footer">
+          <button class="btn-secondary" onclick="copyOCRText()"><i class="fa-regular fa-copy"></i> Copy Text</button>
+          <button class="btn-primary" onclick="closeOCRModal()">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PDF Tools Modal -->
+    <div id="toolkit-modal" class="fullscreen-modal hidden">
+      <div class="modal-top-bar">
+        <button class="icon-btn" onclick="closeToolkit()"><i class="fa-solid fa-arrow-left"></i></button>
+        <h2>PDF Toolkit</h2>
+        <div></div>
+      </div>
+      <div class="toolkit-grid">
+        <div class="tool-tile" onclick="document.getElementById('gallery-input').click()"><i class="fa-solid fa-file-pdf icon-red"></i><span>Open PDF</span></div>
+        <div class="tool-tile" onclick="alert('Merge PDF: Select multiple documents from the list.')"><i class="fa-solid fa-object-ungroup icon-orange"></i><span>Add/Merge Files</span></div>
+        <div class="tool-tile" onclick="document.getElementById('gallery-input').click()"><i class="fa-solid fa-images icon-lime"></i><span>Add Page From Gallery</span></div>
+        <div class="tool-tile" onclick="alert('PDF Split tool ready')"><i class="fa-solid fa-arrows-split-up-and-left icon-teal"></i><span>Split</span></div>
+        <div class="tool-tile" onclick="alert('Page Size changed to A4')"><i class="fa-regular fa-file-lines icon-green"></i><span>Page Size</span></div>
+        <div class="tool-tile" onclick="openSignatureModal()"><i class="fa-solid fa-signature icon-yellow"></i><span>Signature</span></div>
+        <div class="tool-tile" onclick="alert('Password feature enabled for export')"><i class="fa-solid fa-lock icon-pink"></i><span>Add Password</span></div>
+        <div class="tool-tile" onclick="triggerOCRFlow()"><i class="fa-solid fa-file-word icon-blue"></i><span>PDF to Text</span></div>
+      </div>
+    </div>
+
+    <!-- Premium Modal (Matching Screenshot) -->
+    <div id="premium-modal" class="fullscreen-modal hidden">
+      <div class="modal-top-bar light">
+        <button class="icon-btn" onclick="closePremiumModal()"><i class="fa-solid fa-xmark"></i></button>
+        <h2 style="color: #ff9800;"><i class="fa-solid fa-crown"></i> Premium</h2>
+        <div></div>
+      </div>
+      <div class="premium-banner-header">
+        <div class="premium-badge-box">DOC SCANNER</div>
+        <h2>GO PREMIUM</h2>
+        <p>Get access to Doc Scanner premium features at a very affordable cost</p>
+      </div>
+      <div class="premium-features-list">
+        <div><i class="fa-solid fa-check"></i> Unlimited Scan</div>
+        <div><i class="fa-solid fa-check"></i> Remove Ads</div>
+        <div><i class="fa-solid fa-check"></i> Save to Cloud (GDrive/Dropbox)</div>
+        <div><i class="fa-solid fa-check"></i> Original Signature on Docs</div>
+        <div><i class="fa-solid fa-check"></i> Set password in PDF</div>
+        <div><i class="fa-solid fa-check"></i> High Quality OCR</div>
+      </div>
+      <div class="plans-container">
+        <div class="plan-card plan-3m" onclick="alert('Proceeding to ₹399 3-Months checkout')">
+          <div class="plan-price">₹399.00 / 3 Months</div>
+          <div class="plan-sub">✦ Flexible Plan</div>
+        </div>
+        <div class="plan-card plan-1y selected" onclick="alert('Proceeding to ₹799 1-Year checkout')">
+          <div class="discount-tag">50% OFF</div>
+          <div class="plan-price">₹799.00 / 1 Year</div>
+          <div class="plan-sub">✦ Save 50% with Yearly Plan • Best Value</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="fullscreen-modal hidden">
+      <div class="modal-top-bar">
+        <button class="icon-btn" onclick="closeSettings()"><i class="fa-solid fa-arrow-left"></i></button>
+        <h2>Settings</h2>
+        <div></div>
+      </div>
+      <div class="settings-list">
+        <h4 class="settings-group-title">AUTO BACKUP SETTINGS</h4>
+        <div class="setting-item">
+          <div><strong>Auto Local Backup and Restore</strong><br><small>Manage automatic local backup to protect data</small></div>
+          <input type="checkbox" checked>
+        </div>
+        <h4 class="settings-group-title">APP UI AND DISPLAY</h4>
+        <div class="setting-item">
+          <div><strong>Tools Shortcut</strong><br><small>Show tools on home screen</small></div>
+          <input type="checkbox" checked>
+        </div>
+        <div class="setting-item">
+          <div><strong>Tags</strong><br><small>Show tags on home screen</small></div>
+          <input type="checkbox" checked>
+        </div>
+        <div class="setting-item">
+          <div><strong>Favourite Documents</strong><br><small>Show favourite documents</small></div>
+          <input type="checkbox" checked>
+        </div>
+        <h4 class="settings-group-title">DOCUMENT SETTINGS</h4>
+        <div class="setting-item">
+          <div><strong>High Quality Export (300 DPI)</strong></div>
+          <input type="checkbox" checked>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="js/app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then((reg) => console.log('ServiceWorker registered:', reg))
+          .catch((err) => console.log('ServiceWorker registration failed:', err));
+      });
+    }
+  </script>
+
+</body>
+</html>
